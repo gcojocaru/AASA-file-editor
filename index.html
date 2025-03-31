@@ -251,7 +251,7 @@
     
     <div class="info">
         <p>This tool helps you add or remove URL paths in your AASA file for Universal Links. Upload your existing AASA file, select which app IDs to update, and choose whether to add or remove the URLs.</p>
-        <p>The URL paths will be extracted and added to or removed from the "components" array for each selected App ID in the AASA file.</p>
+        <p>The tool automatically detects and prevents duplicate paths, ensuring your AASA file stays clean and efficient.</p>
     </div>
     
     <div class="container">
@@ -293,7 +293,7 @@
                     </div>
                 </div>
                 <label for="urlList">Enter URLs (one per line):</label>
-                <textarea id="urlList" placeholder="https://www.example.com/products/new&#10;https://www.example.com/about/team"></textarea>
+                <textarea id="urlList" placeholder="https://www.example.com/products/new&#10;https://www.example.com/about/team&#10;https://www.example.com/contact"></textarea>
             </div>
             
             <div class="btn-container">
@@ -313,10 +313,38 @@
     <div id="log">Ready to update your AASA file.</div>
     
     <script>
-        // Helper function to log messages
-        function log(message) {
+        // Helper function to log messages with optional styling
+        function log(message, type = 'info') {
             const logElement = document.getElementById('log');
-            logElement.textContent += "\n" + message;
+            const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
+            
+            let formattedMessage = `[${timestamp}] ${message}`;
+            
+            // Create a span element for styling
+            const span = document.createElement('span');
+            span.textContent = formattedMessage;
+            
+            // Apply different styles based on message type
+            if (type === 'error') {
+                span.style.color = '#ff5252';
+                span.style.fontWeight = 'bold';
+            } else if (type === 'warning') {
+                span.style.color = '#ffab40';
+                span.style.fontWeight = 'bold';
+            } else if (type === 'success') {
+                span.style.color = '#69f0ae';
+            } else if (type === 'duplicate') {
+                span.style.color = '#b388ff';
+            }
+            
+            // Add a line break
+            const lineBreak = document.createElement('br');
+            
+            // Append to log
+            logElement.appendChild(span);
+            logElement.appendChild(lineBreak);
+            
+            // Scroll to bottom
             logElement.scrollTop = logElement.scrollHeight;
         }
         
@@ -427,7 +455,7 @@
                 log('Successfully read AASA file.');
                 populateAppIDCheckboxes(aasaContent);
             } catch (error) {
-                log(error.message);
+                log(error.message, 'error');
                 appIdSelectionContainer.style.display = 'none';
             }
         }
@@ -448,16 +476,17 @@
             });
             
             // Clear log
-            document.getElementById('log').textContent = "";
+            document.getElementById('log').innerHTML = "";
+            log("Starting processing...");
             
             // Validate inputs
             if (!urlsTextarea) {
-                log(`Error: Please enter at least one URL to ${operation}.`);
+                log(`Error: Please enter at least one URL to ${operation}.`, 'error');
                 return;
             }
             
             if (aasaFileInput.files.length === 0) {
-                log("Error: Please upload an existing AASA file.");
+                log("Error: Please upload an existing AASA file.", 'error');
                 return;
             }
             
@@ -475,15 +504,28 @@
             
             // Extract paths from URLs
             const paths = [];
+            const uniquePathsSet = new Set(); // Track unique paths
+            
             for (const url of urls) {
                 const path = extractPathFromUrl(url);
                 if (path) {
-                    paths.push(path);
-                    log(`Extracted path from ${url}: ${path}`);
+                    // Only add unique paths
+                    if (!uniquePathsSet.has(path)) {
+                        uniquePathsSet.add(path);
+                        paths.push(path);
+                        log(`Extracted path from ${url}: ${path}`);
+                    } else {
+                        log(`Skipping duplicate path from ${url}: ${path}`, 'duplicate');
+                    }
                 }
             }
             
-            // Read the uploaded AASA file
+            if (paths.length === 0) {
+                log("Error: No valid paths could be extracted from the URLs.", 'error');
+                return;
+            }
+            
+            log(`Found ${paths.length} unique paths to ${operation}.`);
             let aasaContent;
             try {
                 const file = aasaFileInput.files[0];
