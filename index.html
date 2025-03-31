@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔗</text></svg>">
     <meta name="description" content="A tool to easily update Apple App Site Association (AASA) files for Universal Links.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AASA File Updater | Universal Links Tool</title>
@@ -560,7 +561,7 @@
             }
             
             if (selectedAppIds.length === 0 && aasaContent.applinks.details.length > 0) {
-                log("Error: Please select at least one App ID to update.");
+                log("Error: Please select at least one App ID to update.", 'error');
                 return;
             }
             
@@ -607,17 +608,17 @@
                         totalAddedCount++;
                         log(`Added path to app ${appEntry.appID || 'No ID'}: ${path}`);
                     } else {
-                        log(`Path already exists in app ${appEntry.appID || 'No ID'}, skipping: ${path}`);
+                        log(`Path already exists in app ${appEntry.appID || 'No ID'}, skipping: ${path}`, 'duplicate');
                     }
                 }
                 
-                log(`Added ${addedCount} new paths to app ${appEntry.appID || 'No ID'}`);
+                log(`Added ${addedCount} new paths to app ${appEntry.appID || 'No ID'}`, 'success');
             }
             
-            log(`\nSummary:`);
-            log(`- Successfully updated AASA file`);
-            log(`- Updated ${selectedAppIds.length} app entries`);
-            log(`- Added ${totalAddedCount} new paths in total`);
+            log(`\nSummary:`, 'success');
+            log(`- Successfully updated AASA file`, 'success');
+            log(`- Updated ${selectedAppIds.length} app entries`, 'success');
+            log(`- Added ${totalAddedCount} new paths in total`, 'success');
         }
         
         // Function to remove paths from the AASA file
@@ -649,19 +650,19 @@
                     if (removed > 0) {
                         removedCount += removed;
                         totalRemovedCount += removed;
-                        log(`Removed path from app ${appEntry.appID || 'No ID'}: ${path}`);
+                        log(`Removed path from app ${appEntry.appID || 'No ID'}: ${path}`, 'success');
                     } else {
-                        log(`Path not found in app ${appEntry.appID || 'No ID'}, skipping: ${path}`);
+                        log(`Path not found in app ${appEntry.appID || 'No ID'}, skipping: ${path}`, 'warning');
                     }
                 }
                 
-                log(`Removed ${removedCount} paths from app ${appEntry.appID || 'No ID'}`);
+                log(`Removed ${removedCount} paths from app ${appEntry.appID || 'No ID'}`, 'success');
             }
             
-            log(`\nSummary:`);
-            log(`- Successfully updated AASA file`);
-            log(`- Updated ${selectedAppIds.length} app entries`);
-            log(`- Removed ${totalRemovedCount} paths in total`);
+            log(`\nSummary:`, 'success');
+            log(`- Successfully updated AASA file`, 'success');
+            log(`- Updated ${selectedAppIds.length} app entries`, 'success');
+            log(`- Removed ${totalRemovedCount} paths in total`, 'success');
         }
         
         // Function to download the AASA file
@@ -669,7 +670,7 @@
             const outputContent = document.getElementById('outputAASA').value;
             
             if (!outputContent) {
-                log("Error: No content to download.");
+                log("Error: No content to download.", 'error');
                 return;
             }
             
@@ -688,7 +689,7 @@
                 URL.revokeObjectURL(url);
             }, 0);
             
-            log("AASA file downloaded successfully.");
+            log("AASA file downloaded successfully.", 'success');
         }
         
         // Set up event listeners
