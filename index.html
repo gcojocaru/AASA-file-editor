@@ -20,9 +20,6 @@
             --log-bg: #252525;
             --info-bg: #1a3353;
             --info-border: #2962ff;
-            --addition-color: #4CAF50;
-            --removal-color: #f44336;
-            --exclude-color: #ff9800;
         }
         
         * {
@@ -238,6 +235,15 @@
             font-size: 40px;
             color: var(--accent-color);
         }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 14px;
+            color: #777;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
     </style>
 </head>
 <body>
@@ -245,13 +251,8 @@
     <h1>Universal Links AASA File Updater</h1>
     
     <div class="info">
-        <p>This tool helps you manage URL paths in your AASA file for Universal Links. Upload your existing AASA file, select which app IDs to update, and choose an operation:</p>
-        <ul style="margin-top: 10px; margin-left: 20px; list-style-type: disc;">
-            <li><strong>Add URLs</strong> - Add paths to the components array</li>
-            <li><strong>Remove URLs</strong> - Remove paths from the components array</li>
-            <li><strong>Add Exclusions</strong> - Add paths to the "excludes" property to prevent matching</li>
-        </ul>
-        <p style="margin-top: 10px;">The tool automatically detects and prevents duplicate paths, ensuring your AASA file stays clean and efficient.</p>
+        <p>This tool helps you add or remove URL paths in your AASA file for Universal Links. Upload your existing AASA file, select which app IDs to update, and choose whether to add or remove the URLs.</p>
+        <p>The tool automatically detects and prevents duplicate paths, ensuring your AASA file stays clean and efficient.</p>
     </div>
     
     <div class="container">
@@ -265,6 +266,7 @@
                     <span id="file-name" class="file-name">No file selected</span>
                 </div>
             </div>
+            
             
             <div id="appIdSelectionContainer" style="display: none; margin-bottom: 15px;">
                 <label>Select App IDs to update:</label>
@@ -285,18 +287,14 @@
                             <input type="radio" name="operation" value="add" checked style="margin-right: 5px;">
                             Add URLs
                         </label>
-                        <label style="display: inline-flex; align-items: center; margin-right: 15px; cursor: pointer;">
+                        <label style="display: inline-flex; align-items: center; cursor: pointer;">
                             <input type="radio" name="operation" value="remove" style="margin-right: 5px;">
                             Remove URLs
-                        </label>
-                        <label style="display: inline-flex; align-items: center; cursor: pointer;">
-                            <input type="radio" name="operation" value="exclude" style="margin-right: 5px;">
-                            Add Exclusions
                         </label>
                     </div>
                 </div>
                 <label for="urlList">Enter URLs (one per line):</label>
-                <textarea id="urlList" placeholder="https://www.example.com/products/new&#10;https://www.example.com/about/team&#10;https://www.example.com/products/special" style="height: 150px;"></textarea>
+                <textarea id="urlList" placeholder="https://www.example.com/products/new&#10;https://www.example.com/about/team&#10;https://www.example.com/contact"></textarea>
             </div>
             
             <div class="btn-container">
@@ -306,19 +304,6 @@
         
         <div class="panel">
             <h2>Output AASA File</h2>
-            <div id="comparison-container" style="margin-bottom: 15px; display: none;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <span>Path Changes:</span>
-                    <div>
-                        <span style="background-color: var(--addition-color); color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-right: 5px;">Added</span>
-                        <span style="background-color: var(--removal-color); color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-right: 5px;">Removed</span>
-                        <span style="background-color: var(--exclude-color); color: white; padding: 2px 6px; border-radius: 3px; font-size: 12px;">Excluded</span>
-                    </div>
-                </div>
-                <div id="changes-list" style="max-height: 100px; overflow-y: auto; border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; background-color: var(--input-bg); margin-bottom: 15px; font-family: monospace;">
-                    <!-- Changes will be shown here -->
-                </div>
-            </div>
             <textarea id="outputAASA" readonly></textarea>
             <div class="btn-container">
                 <button id="downloadBtn" disabled>Download AASA File</button>
@@ -382,7 +367,7 @@
                 const urlObj = new URL(url);
                 return urlObj.pathname; // This returns the full path including the leading slash
             } catch (error) {
-                log(`Error parsing URL ${url}: ${error.message}`, 'error');
+                log(`Error parsing URL ${url}: ${error.message}`);
                 return null;
             }
         }
@@ -482,7 +467,7 @@
             const urlsTextarea = document.getElementById('urlList').value;
             const aasaFileInput = document.getElementById('aasaFile');
             
-            // Get selected operation (add, remove, or exclude)
+            // Get selected operation (add or remove)
             const operation = document.querySelector('input[name="operation"]:checked').value;
             
             // Get selected app IDs
@@ -512,11 +497,11 @@
                 .filter(line => line && !line.startsWith('#'));
             
             if (urls.length === 0) {
-                log("Error: No valid URLs found in the input.", 'error');
+                log("Error: No valid URLs found in the input.");
                 return;
             }
             
-            log(`Found ${urls.length} URLs to process.`);
+            log(`Found ${urls.length} URLs to ${operation}.`);
             
             // Extract paths from URLs
             const paths = [];
@@ -542,15 +527,13 @@
             }
             
             log(`Found ${paths.length} unique paths to ${operation}.`);
-            
-            // Read the uploaded AASA file
             let aasaContent;
             try {
                 const file = aasaFileInput.files[0];
                 aasaContent = await loadAASAFile(file);
                 log('Successfully read existing AASA file.');
             } catch (error) {
-                log(error.message, 'error');
+                log(error.message);
                 return;
             }
             
@@ -567,7 +550,7 @@
             }
             
             // If details array is empty, create a new app entry (only for add operation)
-            if (aasaContent.applinks.details.length === 0 && (operation === 'add' || operation === 'exclude')) {
+            if (aasaContent.applinks.details.length === 0 && operation === 'add') {
                 const appID = "TEAM123.com.example.app";
                 aasaContent.applinks.details.push({
                     appID: appID,
@@ -587,8 +570,6 @@
                 addPaths(aasaContent, selectedAppIds, paths);
             } else if (operation === 'remove') {
                 removePaths(aasaContent, selectedAppIds, paths);
-            } else if (operation === 'exclude') {
-                addExclusions(aasaContent, selectedAppIds, paths);
             }
             
             // Update the output textarea
@@ -684,78 +665,6 @@
             log(`- Removed ${totalRemovedCount} paths in total`, 'success');
         }
         
-        // Function to add exclusions to the AASA file
-        function addExclusions(aasaContent, selectedAppIds, paths) {
-            let totalAddedCount = 0;
-            
-            for (const appIndex of selectedAppIds) {
-                // Get the app entry to update
-                const appEntry = aasaContent.applinks.details[appIndex];
-                log(`Updating app: ${appEntry.appID || 'No ID'}`);
-                
-                // Check if components array exists
-                if (!appEntry.components) {
-                    appEntry.components = [];
-                    log('Created new components array for this app.');
-                }
-                
-                // Process each path to add as an exclusion
-                let addedCount = 0;
-                
-                for (const path of paths) {
-                    // Find if there's an existing component with this path that we can add an exclude to
-                    let found = false;
-                    
-                    for (let i = 0; i < appEntry.components.length; i++) {
-                        const comp = appEntry.components[i];
-                        
-                        // Check if this component has a matching path
-                        if (comp["/"] && typeof comp["/"] === 'string') {
-                            // Get the base path (without the * wildcard)
-                            let basePath = comp["/"];
-                            if (basePath.endsWith('*')) {
-                                basePath = basePath.slice(0, -1);
-                            }
-                            
-                            // Check if the exclusion path starts with the base path
-                            if (path.startsWith(basePath)) {
-                                // Check if excludes array exists
-                                if (!comp.excludes) {
-                                    comp.excludes = [];
-                                }
-                                
-                                // Check if this exclusion already exists
-                                if (!comp.excludes.includes(path)) {
-                                    comp.excludes.push(path);
-                                    addedCount++;
-                                    totalAddedCount++;
-                                    log(`Added exclusion to path ${comp["/"]} in app ${appEntry.appID || 'No ID'}: ${path}`, 'success');
-                                    found = true;
-                                } else {
-                                    log(`Exclusion already exists for path ${comp["/"]} in app ${appEntry.appID || 'No ID'}, skipping: ${path}`, 'duplicate');
-                                    found = true;
-                                }
-                                
-                                // We've found a component to add the exclusion to, so we can break the loop
-                                break;
-                            }
-                        }
-                    }
-                    
-                    if (!found) {
-                        log(`No matching component found for exclusion path in app ${appEntry.appID || 'No ID'}: ${path}`, 'warning');
-                    }
-                }
-                
-                log(`Added ${addedCount} exclusions to app ${appEntry.appID || 'No ID'}`, 'success');
-            }
-            
-            log(`\nSummary:`, 'success');
-            log(`- Successfully updated AASA file`, 'success');
-            log(`- Updated ${selectedAppIds.length} app entries`, 'success');
-            log(`- Added ${totalAddedCount} exclusions in total`, 'success');
-        }
-        
         // Function to download the AASA file
         function downloadAASA() {
             const outputContent = document.getElementById('outputAASA').value;
@@ -794,3 +703,6 @@
             // Initialize file name display
             updateFileName();
         });
+    </script>
+</body>
+</html>
