@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AASA File Updater</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-family: monospace;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        input[type="file"] {
+            margin-bottom: 15px;
+            width: 100%;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        #log {
+            height: 100px;
+            overflow: auto;
+            background-color: #f3f3f3;
+            border: 1px solid #ddd;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+        }
+        .info {
+            background-color: #e7f3fe;
+            border-left: 6px solid #2196F3;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>App Site Association (AASA) File Updater</h1>
+    
+    <div class="info">
+        <p>This tool helps you add URL paths to your AASA file for Universal Links. Upload an existing AASA file, then add your URLs.</p>
+        <p>The URL paths will be extracted and added to the "components" array in the AASA file.</p>
+    </div>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>Input</h2>
+            <div>
+                <label for="aasaFile">Upload Existing AASA File:</label>
+                <input type="file" id="aasaFile" accept=".json">
+            </div>
+            
+            <div>
+                <label for="appID">App ID (only used for new files):</label>
+                <input type="text" id="appID" placeholder="TEAM123.com.example.app" style="width: 100%; padding: 8px; margin-bottom: 15px;">
+            </div>
+            
+            <div>
+                <label for="urlList">Enter URLs (one per line):</label>
+                <textarea id="urlList" placeholder="https://www.example.com/products/new&#10;https://www.example.com/about/team"></textarea>
+            </div>
+            
+            <button id="processBtn">Process URLs</button>
+        </div>
+        
+        <div class="panel">
+            <h2>Output AASA File</h2>
+            <textarea id="outputAASA" readonly></textarea>
+            <button id="downloadBtn" disabled>Download AASA File</button>
+        </div>
+    </div>
+    
+    <div id="log">Ready.</div>
+    
+    <script>
+        // Helper function to log messages
+        function log(message) {
+            const logElement = document.getElementById('log');
+            logElement.textContent += "\n" + message;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        // Function to extract path from URL
+        function extractPathFromUrl(url) {
+            try {
+                const urlObj = new URL(url);
+                return urlObj.pathname; // This returns the full path including the leading slash
+            } catch (error) {
+                log(`Error parsing URL ${url}: ${error.message}`);
+                return null;
+            }
+        }
+        
+        // Function to process the AASA file
+        async function processAASA() {
+            // Get input values
+            const appIdInput = document.getElementById('appID').value.trim();
+            const urlsTextarea = document.getElementById('urlList').value;
+            const aasaFileInput = document.getElementById('aasaFile');
+            
+            // Clear log
+            document.getElementById('log').textContent = "";
+            
+            // Validate inputs
+            if (!urlsTextarea) {
+                log("Error: Please enter at least one URL.");
+                return;
+            }
+            
+            if (aasaFileInput.files.length === 0) {
+                log("Error: Please upload an existing AASA file.");
+                return;
+            }
+            
+            // Parse URLs
+            const urls = urlsTextarea.split('\n')
+                .map(line => line.trim())
+                .filter(line => line && !line.startsWith('#'));
+            
+            if (urls.length === 0) {
+                log("Error: No valid URLs found in the input.");
+                return;
+            }
+            
+            log(`Found ${urls.length} URLs to process.`);
+            
+            // Extract paths from URLs
+            const paths = [];
+            for (const url of urls) {
+                const path = extractPathFromUrl(url);
+                if (path) {
+                    paths.push(path);
+                    log(`Extracted path from ${url}: ${path}`);
+                }
+            }
+            
+            // Read the uploaded AASA file
+            let aasaContent;
+            try {
+                const file = aasaFileInput.files[0];
+                const fileContent = await file.text();
+                aasaContent = JSON.parse(fileContent);
+                log('Successfully read existing AASA file.');
+            } catch (error) {
+                log(`Error reading AASA file: ${error.message}`);
+                return;
+            }
+            
+            // Check if applinks structure exists
+            if (!aasaContent.applinks) {
+                aasaContent.applinks = { apps: [], details: [] };
+                log('Created new applinks structure.');
+            }
+            
+            // Check if details array exists
+            if (!aasaContent.applinks.details) {
+                aasaContent.applinks.details = [];
+                log('Created new details array.');
+            }
+            
+            // If details array is empty, create a new app entry
+            if (aasaContent.applinks.details.length === 0) {
+                const appID = appIdInput || "TEAM123.com.example.app";
+                aasaContent.applinks.details.push({
+                    appID: appID,
+                    components: []
+                });
+                log('Created new app entry.');
+            }
+            
+            // Add paths to the components array
+            const appEntry = aasaContent.applinks.details[0];
+            
+            // Check if components array exists
+            if (!appEntry.components) {
+                appEntry.components = [];
+                log('Created new components array.');
+            }
+            
+            // Add each path to the components array
+            for (const path of paths) {
+                // Check if this path already exists
+                const exists = appEntry.components.some(comp => 
+                    comp["/"] && comp["/"] === path
+                );
+                
+                if (!exists) {
+                    appEntry.components.push({ "/": path });
+                    log(`Added path to components: ${path}`);
+                } else {
+                    log(`Path already exists, skipping: ${path}`);
+                }
+            }
+            
+            // Update the output textarea
+            const outputTextarea = document.getElementById('outputAASA');
+            outputTextarea.value = JSON.stringify(aasaContent, null, 2);
+            
+            // Enable download button
+            document.getElementById('downloadBtn').disabled = false;
+            
+            log(`\nSummary:`);
+            log(`- Successfully updated AASA file`);
+            log(`- Added ${paths.length} unique paths`);
+        }
+        
+        // Function to download the AASA file
+        function downloadAASA() {
+            const outputContent = document.getElementById('outputAASA').value;
+            
+            if (!outputContent) {
+                log("Error: No content to download.");
+                return;
+            }
+            
+            const blob = new Blob([outputContent], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'apple-app-site-association';
+            document.body.appendChild(a);
+            a.click();
+            
+            // Cleanup
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 0);
+            
+            log("AASA file downloaded successfully.");
+        }
+        
+        // Set up event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('processBtn').addEventListener('click', processAASA);
+            document.getElementById('downloadBtn').addEventListener('click', downloadAASA);
+        });
+    </script>
+</body>
+</html>
